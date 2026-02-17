@@ -1,0 +1,46 @@
+# ========================================
+# ASL Recognition API - Requirements
+# ========================================
+
+# ---- Core Scientific Computing ----
+numpy==1.26.4
+scipy==1.11.4
+
+# ---- TensorFlow / Keras (CNN Model) ----
+# Note: TensorFlow 2.15+ includes Keras, no need for separate keras package
+tensorflow==2.15.0
+# keras==3.12.1  # Already included in TensorFlow
+#ml-dtypes==0.5.4
+
+# ---- PyTorch (CPU only - for laptop safety) ----
+# Uncomment if you need PyTorch (not required for this project)
+
+# torchvision==0.16.2+cpu
+# torchaudio==2.1.2+cpu
+# --extra-index-url https://download.pytorch.org/whl/cpu
+
+# ---- YOLO / Computer Vision ----
+ultralytics==8.1.7
+opencv-python==4.9.0.80
+pillow==10.2.0
+
+# ---- FastAPI (REST API & WebSocket) ----
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+websockets==12.0
+
+# ---- Pydantic (Data Validation) ----
+pydantic==2.5.0
+typing-extensions==4.9.0
+
+# ---- Utilities ----
+tqdm==4.66.1
+pyyaml==6.0.1
+requests==2.31.0
+
+# ---- Visualization (Optional - for development) ----
+matplotlib==3.8.2
+
+# ---- Streamlit (Optional - if you want to build a Streamlit UI) ----
+streamlit==1.29.0

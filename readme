@@ -1,0 +1,452 @@
+# ASL Recognition API
+
+A REST API for American Sign Language (ASL) recognition using YOLO for hand detection and CNN for sign classification.
+
+## Features
+
+- 🤖 Real-time ASL sign recognition
+- 📸 Support for image upload and base64 encoding
+- 🎯 Configurable confidence thresholds
+- 📊 Returns bounding boxes and confidence scores
+- 🖼️ Optional annotated image output
+- 📝 26-29 ASL letter classes supported
+
+## Installation
+
+### 1. Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 2. Ensure Model Files Are Available
+
+Make sure you have the following model files:
+- `D:\GitHub\ASL(new)\best2.pt` - Custom YOLO model (or uses pre-trained YOLOv8)
+- `D:\GitHub\ASL(new)\cnn.keras` - CNN classification model
+
+**Note:** Update the paths in `asl_api.py` if your models are in different locations.
+
+## Running the API
+
+### Start the Server
+
+```bash
+python asl_api.py
+```
+
+Or using uvicorn directly:
+
+```bash
+uvicorn asl_api:app --host 0.0.0.0 --port 8000 --reload
+```
+
+The API will be available at:
+- **API**: http://localhost:8000
+- **Interactive Documentation**: http://localhost:8000/docs
+- **Alternative Docs**: http://localhost:8000/redoc
+
+## API Endpoints
+
+### 1. Health Check
+
+**GET** `/` or `/health`
+
+Check if the API is running and models are loaded.
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "models_loaded": true,
+  "yolo_model": "custom",
+  "cnn_classes": 26
+}
+```
+
+### 2. Get Available Classes
+
+**GET** `/classes`
+
+Get list of all recognizable ASL signs.
+
+**Response:**
+```json
+{
+  "classes": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "K", "L", "M", 
+              "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", 
+              "del", "space"]
+}
+```
+
+### 3. Predict (File Upload)
+
+**POST** `/predict`
+
+Upload an image file for ASL recognition.
+
+**Parameters:**
+- `file` (required): Image file (JPG, PNG, etc.)
+- `return_image` (optional, default: false): Return annotated image
+- `confidence_threshold` (optional, default: 0.15): Minimum confidence for detections
+
+**Example using cURL:**
+```bash
+curl -X POST "http://localhost:8000/predict?return_image=true&confidence_threshold=0.15" \
+  -H "accept: application/json" \
+  -H "Content-Type: multipart/form-data" \
+  -F "file=@/path/to/your/image.jpg"
+```
+
+**Example using Python:**
+```python
+import requests
+
+url = "http://localhost:8000/predict"
+files = {'file': open('image.jpg', 'rb')}
+params = {'return_image': True, 'confidence_threshold': 0.15}
+
+response = requests.post(url, files=files, params=params)
+print(response.json())
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "detections": [
+    {
+      "letter": "A",
+      "confidence": 0.95,
+      "bounding_box": {
+        "x1": 120,
+        "y1": 80,
+        "x2": 320,
+        "y2": 280
+      }
+    }
+  ],
+  "message": "Found 1 detection(s)",
+  "image_with_boxes": "data:image/jpeg;base64,/9j/4AAQSkZJRg..."
+}
+```
+
+### 4. Predict (Base64)
+
+**POST** `/predict-base64`
+
+Send base64 encoded image for ASL recognition.
+
+**Request Body:**
+```json
+{
+  "image": "base64_encoded_string_here"
+}
+```
+
+**Example using Python:**
+```python
+import requests
+import base64
+
+# Read and encode image
+with open('image.jpg', 'rb') as f:
+    image_data = base64.b64encode(f.read()).decode('utf-8')
+
+url = "http://localhost:8000/predict-base64"
+payload = {"image": image_data}
+params = {'return_image': True}
+
+response = requests.post(url, json=payload, params=params)
+print(response.json())
+```
+
+**Example using JavaScript:**
+```javascript
+// Convert file to base64
+const fileInput = document.getElementById('imageInput');
+const file = fileInput.files[0];
+const reader = new FileReader();
+
+reader.onload = async function(e) {
+  const base64Image = e.target.result.split(',')[1]; // Remove data URL prefix
+  
+  const response = await fetch('http://localhost:8000/predict-base64?return_image=true', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ image: base64Image })
+  });
+  
+  const data = await response.json();
+  console.log(data);
+};
+
+reader.readAsDataURL(file);
+```
+
+## Testing the API
+
+Run the provided test client:
+
+```bash
+python test_api.py
+```
+
+## Response Format
+
+### Successful Detection
+
+```json
+{
+  "success": true,
+  "detections": [
+    {
+      "letter": "A",
+      "confidence": 0.95,
+      "bounding_box": {
+        "x1": 100,
+        "y1": 50,
+        "x2": 300,
+        "y2": 250
+      }
+    }
+  ],
+  "message": "Found 1 detection(s)",
+  "image_with_boxes": null  // or base64 string if return_image=true
+}
+```
+
+### No Detections
+
+```json
+{
+  "success": true,
+  "detections": [],
+  "message": "No hands detected",
+  "image_with_boxes": null
+}
+```
+
+### Error Response
+
+```json
+{
+  "detail": "Error processing image: <error message>"
+}
+```
+
+## Integration Examples
+
+### Web Application (HTML + JavaScript)
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ASL Recognition</title>
+</head>
+<body>
+    <h1>ASL Sign Recognition</h1>
+    <input type="file" id="imageInput" accept="image/*">
+    <button onclick="predictSign()">Predict</button>
+    <div id="results"></div>
+    <img id="annotatedImage" style="max-width: 600px;">
+
+    <script>
+        async function predictSign() {
+            const fileInput = document.getElementById('imageInput');
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            const response = await fetch('http://localhost:8000/predict?return_image=true', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+            
+            // Display results
+            document.getElementById('results').innerHTML = 
+                `<h2>${data.message}</h2>` +
+                data.detections.map(d => 
+                    `<p>Letter: ${d.letter}, Confidence: ${(d.confidence * 100).toFixed(2)}%</p>`
+                ).join('');
+            
+            // Display annotated image
+            if (data.image_with_boxes) {
+                document.getElementById('annotatedImage').src = data.image_with_boxes;
+            }
+        }
+    </script>
+</body>
+</html>
+```
+
+### Python Application
+
+```python
+import requests
+from pathlib import Path
+
+class ASLRecognitionClient:
+    def __init__(self, api_url="http://localhost:8000"):
+        self.api_url = api_url
+    
+    def predict_from_file(self, image_path, return_image=False):
+        """Predict ASL sign from image file"""
+        with open(image_path, 'rb') as f:
+            files = {'file': f}
+            params = {'return_image': return_image}
+            response = requests.post(
+                f"{self.api_url}/predict",
+                files=files,
+                params=params
+            )
+        return response.json()
+    
+    def predict_from_base64(self, base64_data, return_image=False):
+        """Predict ASL sign from base64 encoded image"""
+        payload = {"image": base64_data}
+        params = {'return_image': return_image}
+        response = requests.post(
+            f"{self.api_url}/predict-base64",
+            json=payload,
+            params=params
+        )
+        return response.json()
+    
+    def get_classes(self):
+        """Get available ASL classes"""
+        response = requests.get(f"{self.api_url}/classes")
+        return response.json()
+
+# Usage
+client = ASLRecognitionClient()
+result = client.predict_from_file("test.jpg", return_image=True)
+print(result)
+```
+
+### Mobile App (React Native)
+
+```javascript
+import * as ImagePicker from 'expo-image-picker';
+
+async function recognizeASL() {
+  // Pick image
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    base64: true,
+  });
+
+  if (!result.canceled) {
+    // Send to API
+    const response = await fetch('http://YOUR_SERVER_IP:8000/predict-base64?return_image=true', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ image: result.assets[0].base64 })
+    });
+
+    const data = await response.json();
+    console.log(data.detections);
+  }
+}
+```
+
+## Configuration
+
+### Change Model Paths
+
+Edit `asl_api.py` and update:
+
+```python
+yolo_model_path = "path/to/your/yolo/model.pt"
+cnn_model_path = "path/to/your/cnn/model.keras"
+```
+
+### Change Port
+
+```bash
+uvicorn asl_api:app --port 8080
+```
+
+### Enable CORS for Specific Origins
+
+In `asl_api.py`:
+
+```python
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "https://yourdomain.com"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+```
+
+## Performance Tips
+
+1. **GPU Support**: Remove `os.environ["CUDA_VISIBLE_DEVICES"] = "-1"` to enable GPU
+2. **Batch Processing**: For multiple images, call the endpoint multiple times or implement batch endpoint
+3. **Caching**: Consider caching model predictions for identical images
+4. **Async Processing**: For high traffic, use background tasks with Celery
+
+## Troubleshooting
+
+### Models Not Loading
+- Check file paths are correct
+- Ensure model files exist and are readable
+- Check TensorFlow and YOLO versions compatibility
+
+### Low Accuracy
+- Adjust `confidence_threshold` parameter
+- Ensure good lighting in images
+- Make sure hand is clearly visible and in frame
+
+### Slow Response Times
+- Enable GPU if available
+- Reduce image size before sending
+- Consider deploying on a server with better specs
+
+## Deployment
+
+### Docker Deployment
+
+Create `Dockerfile`:
+```dockerfile
+FROM python:3.10-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY asl_api.py .
+COPY best2.pt .
+COPY cnn.keras .
+
+EXPOSE 8000
+
+CMD ["uvicorn", "asl_api:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+Build and run:
+```bash
+docker build -t asl-api .
+docker run -p 8000:8000 asl-api
+```
+
+## License
+
+[Your License Here]
+
+## Credits
+
+Built with:
+- FastAPI
+- YOLO (Ultralytics)
+- TensorFlow/Keras
+- OpenCV
